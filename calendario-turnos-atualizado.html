@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendário de Turnos 4x2 – Alternância de Turnos</title>
+  <style>
+    :root {
+      --primary-blue: #2563eb;
+      --primary-yellow: #fbbf24;
+      --primary-purple: #7c3aed;
+      --border-color: #e5e7eb;
+      --bg-gray: #f3f4f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 1rem;
+      background-color: #fff;
+      color: #1f2937;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      margin-bottom: 2rem;
+      color: #1f2937;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      background-color: var(--bg-gray);
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      margin-bottom: 2rem;
+    }
+
+    @media (min-width: 768px) {
+      .controls {
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    @media (min-width: 768px) {
+      .control-group {
+        flex-direction: row;
+        align-items: center;
+      }
+    }
+
+    .controls label {
+      font-weight: 500;
+      min-width: 120px;
+    }
+
+    .controls input {
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 0.25rem;
+      font-size: 1rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 0.25rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      background-color: #2563eb;
+      color: white;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn-secondary {
+      background-color: #4b5563;
+    }
+
+    /* Botões de exportação: PDF (vermelho) e Excel (verde) */
+    .btn-pdf {
+      background-color: red;
+    }
+
+    .btn-excel {
+      background-color: green;
+    }
+
+    .instructions {
+      text-align: left;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 1.5rem;
+      background-color: var(--bg-gray);
+      border-radius: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .instructions strong {
+      color: #2563eb;
+    }
+
+    .month {
+      margin-bottom: 3rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border-radius: 0.5rem;
+      overflow: hidden;
+    }
+
+    .month h2 {
+      text-align: center;
+      padding: 1rem;
+      background-color: var(--bg-gray);
+      font-size: clamp(1.2rem, 3vw, 1.5rem);
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+
+    .day, .day-header {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      font-size: clamp(0.8rem, 2vw, 1rem);
+    }
+
+    @media (max-width: 480px) {
+      .day, .day-header {
+        aspect-ratio: auto;
+        min-height: 50px;
+      }
+    }
+
+    .day-header {
+      font-weight: 600;
+      background-color: var(--bg-gray);
+    }
+
+    .day {
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .day:hover {
+      transform: scale(0.98);
+    }
+
+    .day.off {
+      background-color: #fff;
+    }
+
+    .day.morning {
+      background-color: var(--primary-blue);
+      color: #fff;
+    }
+
+    .day.afternoon {
+      background-color: var(--primary-yellow);
+      color: #000;
+    }
+
+    .day.holiday {
+      background-color: var(--primary-purple);
+      color: #fff;
+    }
+
+    .day .status-indicator {
+      font-size: 0.7em;
+      margin-top: 0.25rem;
+    }
+
+    @media (min-width: 1200px) {
+      #calendarContainer {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+      }
+    }
+  </style>
+  <!-- Inclusão das bibliotecas para exportação -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Calendário de Turnos 4x2 – Alternância de Turnos</h1>
+    
+    <div class="controls">
+      <div class="control-group">
+        <label for="yearInput">Ano:</label>
+        <input type="number" id="yearInput" value="2023" min="2000" max="2100" />
+      </div>
+      <div class="control-group">
+        <label for="startDateInput">Data início:</label>
+        <input type="date" id="startDateInput" value="2023-01-01" />
+      </div>
+      <button class="btn" onclick="generateCalendar()">Gerar Calendário</button>
+      <button class="btn btn-secondary" onclick="autoFillSchedule()">Auto Preencher</button>
+      <!-- Botões de exportação, inicialmente desabilitados -->
+      <button class="btn btn-pdf" id="exportPDF" onclick="exportToPDF()" disabled>Exportar PDF</button>
+      <button class="btn btn-excel" id="exportExcel" onclick="exportToExcel()" disabled>Exportar Excel</button>
+    </div>
+
+    <div class="instructions">
+      <p>Como usar:</p>
+      <ol>
+        <li>Selecione o ano e a data de início do ciclo</li>
+        <li>Clique nos primeiros <strong>4 dias</strong> do ciclo para definir o turno inicial</li>
+        <li>Alterne entre turnos clicando nos dias (Manhã ↔ Tarde ↔ Folga)</li>
+        <li>Use "Auto Preencher" para completar o calendário automaticamente</li>
+      </ol>
+      <p><small>
+        Manhã (azul): 08:00 às 16:30<br>
+        Tarde (amarelo): 15:30 às 00:00<br>
+        Feriados são marcados em roxo
+      </small></p>
+    </div>
+
+    <div id="calendarContainer"></div>
+  </div>
+
+  <script>
+    function generateCalendar() {
+      const year = parseInt(document.getElementById('yearInput').value);
+      const calendarContainer = document.getElementById('calendarContainer');
+      calendarContainer.innerHTML = '';
+      
+      // Atualiza a data de início somente se estiver vazia ou se o ano não corresponder
+      const startDateInput = document.getElementById('startDateInput');
+      if (!startDateInput.value || startDateInput.value.substring(0, 4) !== year.toString()) {
+        startDateInput.value = `${year}-01-01`;
+      }
+
+      for (let month = 0; month < 12; month++) {
+        const monthDiv = document.createElement('div');
+        monthDiv.classList.add('month');
+
+        const monthName = new Date(year, month).toLocaleString('pt-BR', { month: 'long' });
+        const monthHeader = document.createElement('h2');
+        monthHeader.textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1) + ' ' + year;
+        monthDiv.appendChild(monthHeader);
+
+        const calendarGrid = document.createElement('div');
+        calendarGrid.classList.add('calendar');
+
+        const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        diasSemana.forEach(dia => {
+          const dayHeader = document.createElement('div');
+          dayHeader.classList.add('day-header');
+          dayHeader.textContent = dia;
+          calendarGrid.appendChild(dayHeader);
+        });
+
+        const firstDay = new Date(year, month, 1).getDay();
+        for (let i = 0; i < firstDay; i++) {
+          const emptyCell = document.createElement('div');
+          emptyCell.classList.add('day');
+          emptyCell.style.visibility = 'hidden';
+          calendarGrid.appendChild(emptyCell);
+        }
+
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = new Date(year, month, day);
+          const dayCell = document.createElement('div');
+          dayCell.classList.add('day', 'off');
+          dayCell.dataset.status = 'off';
+          dayCell.dataset.date = date.toISOString().substring(0,10);
+          
+          const dayNumber = document.createElement('span');
+          dayNumber.textContent = day;
+          dayCell.appendChild(dayNumber);
+          
+          const statusIndicator = document.createElement('span');
+          statusIndicator.classList.add('status-indicator');
+          statusIndicator.textContent = 'Folga';
+          dayCell.appendChild(statusIndicator);
+
+          dayCell.addEventListener('click', function() {
+            if(dayCell.dataset.status === 'holiday') return;
+            
+            const statusMap = {
+              'off': { next: 'morning', text: 'Manhã', class: 'morning' },
+              'morning': { next: 'afternoon', text: 'Tarde', class: 'afternoon' },
+              'afternoon': { next: 'off', text: 'Folga', class: 'off' }
+            };
+
+            const currentStatus = dayCell.dataset.status;
+            const newStatus = statusMap[currentStatus];
+
+            dayCell.dataset.status = newStatus.next;
+            dayCell.className = `day ${newStatus.class}`;
+            dayCell.querySelector('.status-indicator').textContent = newStatus.text;
+          });
+
+          calendarGrid.appendChild(dayCell);
+        }
+
+        monthDiv.appendChild(calendarGrid);
+        calendarContainer.appendChild(monthDiv);
+      }
+    }
+
+    function getHolidays(year) {
+      return [
+        `${year}-01-01`,
+        `${year}-04-25`,
+        `${year}-05-01`,
+        `${year}-06-10`,
+        `${year}-08-15`,
+        `${year}-10-05`,
+        `${year}-11-01`,
+        `${year}-12-01`,
+        `${year}-12-08`,
+        `${year}-12-25`
+      ];
+    }
+
+    function isHoliday(date, year) {
+      const iso = date.toISOString().substring(0,10);
+      return getHolidays(year).includes(iso);
+    }
+
+    function autoFillSchedule() {
+      const year = parseInt(document.getElementById('yearInput').value);
+      const startDateStr = document.getElementById('startDateInput').value;
+      const startCycleDate = new Date(startDateStr);
+      
+      let baseColor = 'morning';
+      let workDaysCount = 0;
+      let d = new Date(startCycleDate);
+      
+      while(workDaysCount < 4 && d.getFullYear() === year) {
+        const iso = d.toISOString().substring(0,10);
+        const cell = document.querySelector(`[data-date="${iso}"]`);
+        if (cell) {
+          const status = cell.dataset.status;
+          if (status === 'morning' || status === 'afternoon') {
+            if(workDaysCount === 0) baseColor = status;
+            workDaysCount++;
+          }
+        }
+        d.setDate(d.getDate() + 1);
+      }
+
+      const complementaryColor = baseColor === 'morning' ? 'afternoon' : 'morning';
+      const statusTexts = {
+        'morning': 'Manhã',
+        'afternoon': 'Tarde',
+        'off': 'Folga',
+        'holiday': 'Feriado'
+      };
+
+      const startOfYear = new Date(year, 0, 1);
+      const endOfYear = new Date(year, 11, 31);
+      
+      for (let d = new Date(startOfYear); d <= endOfYear; d.setDate(d.getDate() + 1)) {
+        const iso = d.toISOString().substring(0,10);
+        const cell = document.querySelector(`[data-date="${iso}"]`);
+        if (!cell) continue;
+
+        const diffDays = Math.floor((d - startCycleDate) / (1000 * 60 * 60 * 24));
+        if(diffDays < 0) continue;
+
+        const cycleNumber = Math.floor(diffDays / 6);
+        const dayInCycle = diffDays % 6;
+
+        let status;
+        if (isHoliday(d, year)) {
+          status = 'holiday';
+        } else if (dayInCycle < 4) {
+          status = (cycleNumber % 2 === 0) ? baseColor : complementaryColor;
+        } else {
+          status = 'off';
+        }
+
+        cell.dataset.status = status;
+        cell.className = `day ${status}`;
+        cell.querySelector('.status-indicator').textContent = statusTexts[status];
+      }
+      // Habilita os botões de exportação após o calendário ser preenchido
+      document.getElementById('exportPDF').disabled = false;
+      document.getElementById('exportExcel').disabled = false;
+    }
+
+    function exportToPDF() {
+      const calendarContainer = document.getElementById('calendarContainer');
+      // Use html2canvas para capturar todo o container com um scale maior para melhor resolução
+      html2canvas(calendarContainer, { scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jspdf.jsPDF('p', 'pt', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = pageWidth;
+        const imgHeight = canvas.height * pageWidth / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        // Enquanto houver conteúdo a ser adicionado, crie novas páginas
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+        pdf.save('calendario.pdf');
+      });
+    }
+
+    function exportToExcel() {
+      // Seleciona somente os elementos de dia que possuem o atributo data-date
+      const days = document.querySelectorAll('.day[data-date]');
+      const data = [];
+      days.forEach(day => {
+        data.push({
+          "Data": day.dataset.date,
+          "Turno": day.dataset.status
+        });
+      });
+      // Ordena os dados por data
+      data.sort((a, b) => new Date(a.Data) - new Date(b.Data));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Calendário");
+      XLSX.writeFile(wb, "calendario.xlsx");
+    }
+
+    generateCalendar();
+  </script>
+</body>
+</html>
